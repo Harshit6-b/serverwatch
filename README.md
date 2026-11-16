@@ -109,6 +109,28 @@ On first start it prints the dashboard address and an **agent key**. FIX needs t
 
 ### 3. Build the beacon
 
+Two hardware options. Both use an ESP32-S3 and the same firmware; pick one in `idf.py menuconfig` → *ServerWatch Beacon → Board*.
+
+#### Option A: SRA VJTI Wall-E 2026 board (no wiring)
+
+The [Wall-E board](https://github.com/SRA-VJTI/sra-board-component) already has the OLED
+(SDA 14 / SCL 21) and an 8×8 LED matrix (MAX7219), so you only need a USB cable. The matrix
+shows big status icons you can read from across the room:
+
+<p align="center"><img src="docs/img/walle-matrix.png" width="640" alt="Wall-E matrix icons: OK, warning, critical, server down, no WiFi, searching"></p>
+
+The board has no user buttons, so the **BOOT** button is used: short press = acknowledge,
+hold 1.5 s = FIX.
+
+```bash
+cd firmware
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.walle" set-target esp32s3
+idf.py menuconfig        # ServerWatch Beacon: WiFi name/password, agent key
+idf.py build flash monitor
+```
+
+#### Option B: any ESP32-S3 DevKit + a 0.96" OLED
+
 | Part | Notes |
 |---|---|
 | ESP32-S3 dev board | DevKitC-1 or similar, with its onboard WS2812 RGB LED |
@@ -122,27 +144,27 @@ On first start it prints the dashboard address and an **agent key**. FIX needs t
 | Button 1 | GPIO 4 ↔ GND (short = acknowledge, hold 1.5 s = FIX) |
 | Button 2 | GPIO 5 ↔ GND (FIX), optional |
 
-With ESP-IDF v5.5:
-
 ```bash
 cd firmware
 idf.py set-target esp32s3
-idf.py menuconfig        # "ServerWatch Beacon": WiFi name/password, agent key, pins
+idf.py menuconfig        # ServerWatch Beacon: WiFi name/password, agent key, DevKit pins
 idf.py build flash monitor
 ```
+
+Both options need ESP-IDF v5.5.
 
 Nothing secret is committed: WiFi details live in `sdkconfig`, which git ignores. The beacon
 finds the agent on its own (UDP broadcast on port 47800). Both must be on the same 2.4 GHz
 network. A phone hotspot works well; many campus networks block device-to-device traffic.
 
-| LED | Meaning |
-|---|---|
-| green | all checks pass |
-| amber | warning |
-| red, blinking | critical, not acknowledged (screen flashes too) |
-| red, steady | critical, acknowledged |
-| magenta, blinking | server not answering |
-| blue | the beacon itself has no WiFi |
+| DevKit LED | Wall-E matrix | Meaning |
+|---|---|---|
+| green | ✓ | all checks pass |
+| amber | ! | warning |
+| red, blinking | ✗ blinking | critical, not acknowledged (screen flashes too) |
+| red, steady | ✗ steady | critical, acknowledged |
+| magenta, blinking | sad face | server not answering |
+| blue | WiFi icon | the beacon itself has no WiFi |
 
 All the screens are in [`docs/img/beacon/`](docs/img/beacon/).
 
@@ -165,7 +187,7 @@ The dashboard's **Report (.md)** and **Readings (.csv)** links export everything
 ```
 agent/        serverwatch.py (agent + web API), engine.py (rules), sources.py (WMI + simulator),
               static/index.html (dashboard), test_engine.py
-firmware/     ESP-IDF project for the beacon (main/), tools/ renders the screens on a PC
+firmware/     ESP-IDF project for the beacon (main/; board.h has the pin maps), tools/ renders the screens on a PC
 demo/         inject.py fault injector, demo-disk scripts, Windows setup
 docs/img/     diagram and beacon screens
 ```

@@ -20,9 +20,9 @@ void beacon_note(const char *text);
 // net.c
 void net_start(void);
 
-// led.c
-void led_init(int gpio);
-void led_rgb(uint8_t r, uint8_t g, uint8_t b);
+// indicator.c: RGB LED or LED matrix, depending on the board
+void indicator_init(void);
+void indicator_update(const beacon_status_t *s, bool local_ack, int64_t now_us);
 
 // display.c (hardware side; drawing is in gfx.c / screens.c)
 bool display_init(int sda, int scl, int addr, bool flip);

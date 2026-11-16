@@ -35,19 +35,38 @@ menu "ServerWatch Beacon"
         default 3
         range 1 20
 
-    menu "Pins"
+    choice SW_BOARD
+        prompt "Board"
+        default SW_BOARD_DEVKIT
+        help
+            Pick the hardware. The Wall-E option uses the board's own OLED, 8x8 LED
+            matrix and BOOT button, so no wiring is needed.
+
+        config SW_BOARD_DEVKIT
+            bool "ESP32-S3 DevKit + external SSD1306 OLED + onboard RGB LED"
+        config SW_BOARD_SRA_WALLE
+            bool "SRA VJTI Wall-E 2026 board (OLED, 8x8 LED matrix, BOOT button)"
+    endchoice
+
+    config SW_OLED_ADDR
+        hex "OLED I2C address"
+        default 0x3C
+    config SW_OLED_FLIP
+        bool "Rotate the OLED by 180 degrees"
+        default n
+    config SW_LED_BRIGHTNESS
+        int "Status light brightness (0-255)"
+        default 40
+        range 0 255
+
+    menu "DevKit pins"
+        depends on SW_BOARD_DEVKIT
         config SW_PIN_SDA
             int "OLED SDA"
             default 8
         config SW_PIN_SCL
             int "OLED SCL"
             default 9
-        config SW_OLED_ADDR
-            hex "OLED I2C address"
-            default 0x3C
-        config SW_OLED_FLIP
-            bool "Rotate the OLED by 180 degrees"
-            default n
         config SW_PIN_BTN
             int "Main button (short = ACK, hold = FIX). 0 = BOOT button"
             default 4
@@ -58,10 +77,6 @@ menu "ServerWatch Beacon"
         config SW_PIN_RGB
             int "Onboard WS2812 RGB LED (48 on DevKitC-1 v1.0, 38 on v1.1)"
             default 48
-        config SW_LED_BRIGHTNESS
-            int "LED brightness (0-255)"
-            default 40
-            range 0 255
     endmenu
 
 endmenu
