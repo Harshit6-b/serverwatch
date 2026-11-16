@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ServerWatch</title>
+<style>
+  :root{
+    --bg:#0b0e13; --panel:#12161d; --panel2:#181d26; --line:#232a35; --text:#e7eaf0; --muted:#8792a2; --faint:#5b6574;
+    --ok:#2dd47e; --warn:#f5a524; --crit:#f2545b; --down:#d36bf5; --accent:#6aa8ff;
+    --mono: ui-monospace,"SF Mono",Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  body.alarm::before{content:"";position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 4px var(--crit);animation:pulse 1s steps(2) infinite;z-index:9}
+  @keyframes pulse{50%{box-shadow:inset 0 0 0 4px transparent}}
+  .wrap{max-width:1320px;margin:0 auto;padding:0 20px}
+
+  header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#121722,#0e1219)}
+  .top{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;padding:16px 0}
+  .brand{display:flex;gap:10px;align-items:center;font-weight:700;font-size:18px;letter-spacing:.2px}
+  .logo{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line)}
+  .brand small{display:block;font-weight:500;font-size:11.5px;color:var(--muted);letter-spacing:.3px}
+  .pill{padding:6px 16px;border-radius:999px;font-weight:800;font-size:15px;letter-spacing:1.5px;color:#0b0d10;transition:background .3s}
+  .msg{flex:1;min-width:240px}
+  .msg b{display:block;font-size:16px;font-weight:600}
+  .msg span{font-size:12px;color:var(--muted)}
+  .btns{display:flex;gap:8px}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+  button:hover:not(:disabled){border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#08101d;border-color:var(--accent)}
+  button:disabled{opacity:.35;cursor:default}
+  .host{display:flex;flex-wrap:wrap;gap:6px 18px;padding:0 0 14px;color:var(--muted);font-size:12.5px}
+  .host b{color:var(--text);font-weight:600}
+
+  main{display:grid;gap:16px;padding:18px 0 40px}
+  .sim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;border:1px dashed #6b5320;border-radius:10px;background:#16130b}
+  .sim .t{color:var(--warn);font-weight:700;font-size:12px;letter-spacing:1px;margin-right:6px}
+  .sim button{padding:5px 10px;font-size:12.5px}
+  .sim button.on{border-color:var(--warn);color:var(--warn)}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .kpi .k{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .kpi .v{font-size:26px;font-weight:750;font-variant-numeric:tabular-nums;margin-top:2px}
+  .kpi .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:3px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--ok))}
+  .card h3{margin:0;font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .big{font-size:38px;font-weight:780;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px}
+  .big small{font-size:13px;font-weight:500;color:var(--muted);margin-left:4px}
+  .sub{display:flex;justify-content:space-between;align-items:center;min-height:20px;font-size:12px;color:var(--muted)}
+  .dots{display:inline-flex;gap:4px;align-items:center}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .eta{color:var(--warn);font-weight:600}
+  canvas{width:100%;height:64px;display:block;margin-top:6px}
+  .thr{display:flex;gap:8px;font-size:11.5px;color:var(--faint);margin-top:8px;align-items:center}
+  .thr input{width:46px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:2px 5px;font:inherit}
+  .thr button{padding:2px 9px;font-size:11.5px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+  @media (max-width:960px){.grid2,.grid3{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .panel h2 .note{text-transform:none;letter-spacing:0;font-weight:400;color:var(--faint)}
+  .scroll{overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-weight:700;font-size:11px;color:#0b0d10;letter-spacing:.4px}
+  .muted{color:var(--muted)} .faint{color:var(--faint)}
+  .bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;min-width:60px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .tabs{display:flex;gap:4px}
+  .tabs button{padding:3px 10px;font-size:11.5px}
+  .tabs button.on{border-color:var(--accent);color:var(--accent)}
+  pre.wql{font-family:var(--mono);font-size:12px;color:#aab6c8;background:var(--panel2);padding:10px 12px;border-radius:8px;margin:0;white-space:pre-wrap;word-break:break-word}
+  .kw{color:#6aa8ff}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  footer{color:var(--faint);font-size:12px;padding:0 0 30px}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);padding:10px 16px;border-radius:10px;display:none;max-width:90vw;z-index:10}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6aa8ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></div>
+        <div>ServerWatch<small>server failure detection over WBEM / WMI</small></div>
+      </div>
+      <div class="pill" id="pill">…</div>
+      <div class="msg"><b id="headline">Connecting to the agent…</b><span id="meta"></span></div>
+      <div class="btns">
+        <button id="ackBtn">Acknowledge</button>
+        <button id="fixBtn" class="primary">FIX service</button>
+      </div>
+    </div>
+    <div class="host" id="hostinfo"></div>
+  </div>
+</header>
+
+<div class="wrap">
+<main>
+  <div class="sim" id="sim" hidden></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="k">Mean time to detect</div><div class="v" id="k-lat">–</div></div>
+    <div class="kpi"><div class="k">Handled correctly</div><div class="v" id="k-det">–</div></div>
+    <div class="kpi"><div class="k">Spikes filtered</div><div class="v" id="k-spk">–</div></div>
+    <div class="kpi"><div class="k">False alarms</div><div class="v" id="k-fa">–</div></div>
+    <div class="kpi"><div class="k">WMI round-trip</div><div class="v" id="k-wmi">–</div></div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="grid3">
+    <div class="panel">
+      <h2>Incidents <span class="note">time to detect is measured from the moment the fault was injected</span></h2>
+      <div class="scroll"><table id="incTable"></table></div>
+    </div>
+    <div class="panel">
+      <h2>Who is using it <div class="tabs"><button data-t="cpu" class="on">CPU</button><button data-t="mem">Memory</button></div></h2>
+      <table id="procTable"></table>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Services <span class="note">Win32_Service · event subscription</span></h2>
+      <table id="svcTable"></table>
+      <h2 style="margin-top:16px">Disks <span class="note">Win32_LogicalDisk · DriveType=3</span></h2>
+      <table id="diskTable"></table>
+    </div>
+    <div class="panel">
+      <h2>How it detects <span class="note" id="rules"></span></h2>
+      <pre class="wql" id="wql"></pre>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Alert log <span><a href="/api/report.md">Report (.md)</a> · <a href="/api/history.csv">Readings (.csv)</a></span></h2>
+    <div class="scroll"><table id="alertTable"></table></div>
+  </div>
+
+  <div class="panel">
+    <h2>Why did it go down last time? <button id="evBtn">Read the System event log</button></h2>
+    <table id="evTable"><tr><td class="faint">Queries Win32_NTLogEvent for event IDs 41, 6008, 1001, 7031 and 7034 over the last 7 days.</td></tr></table>
+  </div>
+</main>
+<footer>ServerWatch · polls WMI, applies thresholds with a consecutive-breach rule and hysteresis, and measures how fast it notices.</footer>
+</div>
+<div id="toast"></div>
+
+<script>
+const COL = ["var(--ok)","var(--warn)","var(--crit)","var(--down)"];
+const HEX = ["#2dd47e","#f5a524","#f2545b","#d36bf5"];
+const LBL = ["OK","WARNING","CRITICAL","UNREACHABLE"];
+const ORDER = ["cpu","mem","disk","net"];
+let last = null, hist = [], editing = false, procTab = "cpu";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tag = l => l < 0 ? '<span class="faint">action</span>' : `<span class="tag" style="background:${COL[l]}">${LBL[l]}</span>`;
+const clock = t => new Date(t*1000).toLocaleTimeString();
+const dur = s => s == null ? "–" : s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s/60)}m ${String(Math.round(s%60)).padStart(2,"0")}s` : `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m`;
+
+function toast(t){ const el=$("toast"); el.textContent=t; el.style.display="block"; clearTimeout(toast.h); toast.h=setTimeout(()=>el.style.display="none",3500); }
+function getKey(){
+  let k=null; try{ k=sessionStorage.getItem("swkey"); }catch(e){}
+  if(!k){ k=prompt("Agent key (printed by serverwatch.py when it started)")||""; try{sessionStorage.setItem("swkey",k);}catch(e){} }
+  return k;
+}
+async function post(url, body, needKey){
+  const h={"Content-Type":"application/json"}; if(needKey) h["X-Key"]=getKey();
+  const r=await fetch(url,{method:"POST",headers:h,body:JSON.stringify(body||{})});
+  if(r.status===403){ try{sessionStorage.removeItem("swkey");}catch(e){} }
+  return r.json().catch(()=>({}));
+}
+
+function buildCards(s){
+  $("cards").innerHTML = ORDER.map(k => { const m=s.metrics[k]; return `
+    <div class="card" id="card-${k}">
+      <h3><span>${m.name}</span><span id="lv-${k}"></span></h3>
+      <div class="big"><span id="v-${k}">–</span><small>${m.unit}</small></div>
+      <div class="sub"><span id="st-${k}"></span><span id="eta-${k}" class="eta"></span></div>
+      <canvas id="cv-${k}"></canvas>
+      <div class="thr">warn <input id="w-${k}"> crit <input id="c-${k}"> <button data-k="${k}">set</button></div>
+    </div>`; }).join("");
+  document.querySelectorAll(".thr input").forEach(i => { i.onfocus=()=>editing=true; i.onblur=()=>editing=false; });
+  document.querySelectorAll(".thr button").forEach(b => b.onclick = async () => {
+    const k=b.dataset.k, j=await post("/api/thresholds",{[k]:{warn:+$("w-"+k).value,crit:+$("c-"+k).value}},true);
+    toast(j.ok?"Thresholds updated":(j.msg||"Failed"));
+  });
+}
+
+function spark(k, m){
+  const cv=$("cv-"+k), dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; const g=cv.getContext("2d"); g.scale(dpr,dpr);
+  const y=v=>H-3-(Math.max(0,Math.min(100,v))/100)*(H-6);
+  [[m.warn,HEX[1]],[m.crit,HEX[2]]].forEach(([v,c])=>{ g.strokeStyle=c; g.globalAlpha=.45; g.setLineDash([3,4]); g.beginPath(); g.moveTo(0,y(v)); g.lineTo(W,y(v)); g.stroke(); });
+  g.setLineDash([]); g.globalAlpha=1;
+  const pts=hist.map(r=>r[k]); if(pts.length<2) return;
+  const dx=W/(pts.length-1), col=HEX[m.level]||HEX[0];
+  const grad=g.createLinearGradient(0,0,0,H); grad.addColorStop(0,col+"55"); grad.addColorStop(1,col+"00");
+  g.beginPath(); let started=false, lastX=0;
+  pts.forEach((v,i)=>{ if(v==null) return; const X=i*dx; started?g.lineTo(X,y(v)):(g.moveTo(X,H),g.lineTo(X,y(v))); started=true; lastX=X; });
+  if(!started) return;
+  g.lineTo(lastX,H); g.closePath(); g.fillStyle=grad; g.fill();
+  g.beginPath(); started=false;
+  pts.forEach((v,i)=>{ if(v==null){started=false;return;} started?g.lineTo(i*dx,y(v)):g.moveTo(i*dx,y(v)); started=true; });
+  g.lineWidth=1.8; g.strokeStyle=col; g.stroke();
+}
+
+function renderProcs(){
+  if(!last) return;
+  const list=(last.top||{})[procTab]||[];
+  const max=Math.max(1,...list.map(p=>procTab==="cpu"?p.cpu:p.mem_mb));
+  $("procTable").innerHTML = `<tr><th>Process</th><th>PID</th><th style="width:40%"></th><th class="num">${procTab==="cpu"?"CPU":"Memory"}</th></tr>` +
+    (list.length ? list.map(p=>{ const v=procTab==="cpu"?p.cpu:p.mem_mb;
+      return `<tr><td>${esc(p.name)}</td><td class="faint">${p.pid}</td><td><div class="bar"><i style="width:${v/max*100}%"></i></div></td>
+      <td class="num">${procTab==="cpu"?v.toFixed(1)+"%":(v>=1024?(v/1024).toFixed(2)+" GB":v.toFixed(0)+" MB")}</td></tr>`; }).join("")
+      : `<tr><td colspan=4 class="faint">Sampled when CPU or memory is high (Win32_PerfFormattedData_PerfProc_Process)</td></tr>`);
+}
+
+function render(s){
+  if(!last) buildCards(s);
+  last=s;
+  $("pill").textContent=s.label; $("pill").style.background=COL[s.overall];
+  $("headline").textContent=s.message;
+  $("meta").textContent=`${s.mode==="sim"?"simulator":"live WMI"} · last reading ${s.age ?? "–"} s ago · poll ${s.rules.interval}s, alert after ${s.rules.consec} breaches`+(s.telegram?" · Telegram alerts on":"");
+  const i=s.info||{};
+  $("hostinfo").innerHTML=`<span><b>${esc(s.host)}</b></span>`+(i.os?`<span>${esc(i.os)}</span>`:"")+(i.model?`<span>${esc(i.model)}</span>`:"")+
+    (i.cpus?`<span>${i.cpus} logical CPUs</span>`:"")+(i.ram_gb?`<span>${i.ram_gb} GB RAM</span>`:"")+(s.boot?`<span>booted ${esc(s.boot)}</span>`:"");
+  document.body.classList.toggle("alarm", s.overall>=2 && !s.acked);
+  $("ackBtn").disabled=s.acked; $("fixBtn").disabled=!s.services.some(x=>x.level>0);
+  document.title=`${s.label} · ${s.host} · ServerWatch`;
+
+  const st=s.stats||{};
+  $("k-lat").innerHTML=st.mean_latency!=null?`${st.mean_latency}<small>s</small>`:"–";
+  $("k-det").innerHTML=`${st.correct??0}<small>/ ${st.injected??0} faults</small>`;
+  $("k-spk").textContent=st.spikes_filtered??0;
+  $("k-fa").textContent=st.false_alarms??0;
+  $("k-wmi").innerHTML=s.wmi_ms!=null?`${Math.round(s.wmi_ms)}<small>ms</small>`:"–";
+
+  for(const k of ORDER){
+    const m=s.metrics[k];
+    $("card-"+k).style.setProperty("--c",COL[m.level]);
+    $("v-"+k).textContent=m.value==null?"–":m.value.toFixed(1);
+    $("lv-"+k).innerHTML=tag(m.level);
+    const n=s.rules.consec;
+    $("st-"+k).innerHTML=m.raw>m.level?`<span class="dots">${[...Array(n)].map((_,j)=>`<span class="dot" style="background:${j<m.streak?COL[m.raw]:""}"></span>`).join("")}</span> breach ${m.streak}/${n}`:"";
+    $("eta-"+k).textContent=m.eta!=null?`critical in ~${dur(m.eta)}`:"";
+    if(!editing){ $("w-"+k).value=m.warn; $("c-"+k).value=m.crit; }
+    spark(k,m);
+  }
+  $("svcTable").innerHTML="<tr><th>Service</th><th>State</th><th></th></tr>"+s.services.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.state)}</td><td>${tag(x.level)}</td></tr>`).join("");
+  $("diskTable").innerHTML="<tr><th>Drive</th><th class='num'>Size</th><th class='num'>Free</th></tr>"+(s.disks.length?s.disks.map(d=>`<tr><td>${esc(d.id)}</td><td class="num">${d.size_gb} GB</td><td class="num">${d.free}%</td></tr>`).join(""):`<tr><td colspan=3 class="faint">no data</td></tr>`);
+  $("rules").textContent=`hysteresis ${s.rules.hyst} points`;
+  if(s.queries && !$("wql").dataset.done){
+    $("wql").innerHTML=Object.entries(s.queries).map(([k,q])=>`<span class="faint">-- ${k}</span>\n`+esc(q).replace(/\b(SELECT|FROM|WHERE|AND|OR|WITHIN|ISA)\b/g,'<span class="kw">$1</span>')).join("\n\n");
+    $("wql").dataset.done=1;
+  }
+  renderProcs();
+  if(s.scenarios){
+    const box=$("sim"); box.hidden=false;
+    if(!box.dataset.built){
+      box.innerHTML='<span class="t">SIMULATOR</span>'+Object.entries(s.scenarios).map(([k,v])=>`<button data-s="${k}">${esc(v[0])}</button>`).join("");
+      box.querySelectorAll("button").forEach(b=>b.onclick=()=>post("/api/sim",{scenario:b.dataset.s}));
+      box.dataset.built=1;
+    }
+    box.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.s===s.scenario));
+  }
+}
+
+async function tick(){
+  try{ render(await (await fetch("/api/status")).json()); }
+  catch(e){ $("pill").textContent="AGENT OFFLINE"; $("pill").style.background="var(--down)"; $("headline").textContent="The dashboard cannot reach the agent"; }
+}
+async function slow(){
+  try{
+    hist=await (await fetch("/api/history?n=150")).json();
+    const [al,inc]=await Promise.all([fetch("/api/alerts").then(r=>r.json()), fetch("/api/incidents").then(r=>r.json())]);
+    $("alertTable").innerHTML="<tr><th>Time</th><th>Item</th><th>Change</th><th>Detail</th><th>Via</th></tr>"+
+      (al.length?al.slice(0,30).map(a=>`<tr><td class="faint">${clock(a.t)}</td><td>${esc(a.item)}</td><td>${a.level<0?tag(-1):esc(a.from)+" → "+tag(a.level)}</td><td>${esc(a.text)}</td><td class="faint">${esc(a.via)}</td></tr>`).join("")
+       :`<tr><td colspan=5 class="faint">Nothing yet</td></tr>`);
+    const rows=inc.incidents||[];
+    $("incTable").innerHTML="<tr><th>#</th><th>What</th><th>Fault injected</th><th>Peak</th><th class='num'>Detected after</th><th class='num'>Lasted</th></tr>"+
+      (rows.length?rows.slice(0,12).map(i=>`<tr><td class="faint">${i.id}</td><td>${esc(i.text)}</td><td class="muted">${esc(i.fault||"–")}</td><td>${tag(i.peak)}</td>
+        <td class="num">${i.latency==null?"–":i.latency+" s"}${i.fault?"":'<span class="faint"> *</span>'}</td><td class="num">${i.cleared?dur(i.duration):'<span class="faint">open</span>'}</td></tr>`).join("")
+       :`<tr><td colspan=6 class="faint">No incidents. Inject one with demo/inject.py (or the simulator buttons).</td></tr>`);
+  }catch(e){}
+}
+
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ procTab=b.dataset.t; document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b)); renderProcs(); });
+$("ackBtn").onclick=async()=>toast((await post("/api/ack?from=dashboard")).msg||"Sent");
+$("fixBtn").onclick=async()=>toast((await post("/api/fix?from=dashboard",{},true)).msg||"Failed");
+$("evBtn").onclick=async()=>{
+  $("evTable").innerHTML=`<tr><td class="faint">Querying the event log over WMI…</td></tr>`;
+  const ev=await (await fetch("/api/evidence")).json();
+  if(ev.error){ $("evTable").innerHTML=`<tr><td>${esc(ev.error)}</td></tr>`; return; }
+  $("evTable").innerHTML="<tr><th>Time</th><th>ID</th><th>Meaning</th><th>Message</th></tr>"+
+    (ev.length?ev.map(e=>`<tr><td class="faint">${esc(e.time)}</td><td>${e.id}</td><td>${esc(e.meaning)}</td><td class="muted">${esc(e.message)}</td></tr>`).join("")
+     :`<tr><td colspan=4 class="faint">No failure events in the last 7 days</td></tr>`);
+};
+tick(); slow(); setInterval(tick,1000); setInterval(slow,2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+menu "ServerWatch Beacon"
+
+    config SW_WIFI_SSID
+        string "WiFi name (SSID, 2.4 GHz)"
+        default "YourHotspot"
+
+    config SW_WIFI_PASSWORD
+        string "WiFi password"
+        default ""
+
+    config SW_AGENT_HOST
+        string "Agent IP address (leave empty to auto-discover)"
+        default ""
+        help
+            The agent broadcasts "SERVERWATCH <port>" on UDP 47800 every 2 s.
+            Only set an IP here if your network blocks broadcasts.
+
+    config SW_AGENT_PORT
+        int "Agent port"
+        default 8080
+
+    config SW_API_KEY
+        string "Agent key (printed by serverwatch.py when it starts)"
+        default ""
+        help
+            Needed for the FIX action. Acknowledge works without it.
+
+    config SW_POLL_MS
+        int "Poll period (ms)"
+        default 1000
+        range 200 10000
+
+    config SW_FAIL_LIMIT
+        int "Missed replies before SERVER DOWN"
+        default 3
+        range 1 20
+
+    menu "Pins"
+        config SW_PIN_SDA
+            int "OLED SDA"
+            default 8
+        config SW_PIN_SCL
+            int "OLED SCL"
+            default 9
+        config SW_OLED_ADDR
+            hex "OLED I2C address"
+            default 0x3C
+        config SW_OLED_FLIP
+            bool "Rotate the OLED by 180 degrees"
+            default n
+        config SW_PIN_BTN
+            int "Main button (short = ACK, hold = FIX). 0 = BOOT button"
+            default 4
+        config SW_PIN_FIX
+            int "Optional FIX button (-1 = not fitted)"
+            default 5
+            range -1 48
+        config SW_PIN_RGB
+            int "Onboard WS2812 RGB LED (48 on DevKitC-1 v1.0, 38 on v1.1)"
+            default 48
+        config SW_LED_BRIGHTNESS
+            int "LED brightness (0-255)"
+            default 40
+            range 0 255
+    endmenu
+
+endmenu
