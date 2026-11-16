@@ -1,5 +1,7 @@
 # ServerWatch
 
+[![CI](https://github.com/Harshit6-b/serverwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Harshit6-b/serverwatch/actions/workflows/ci.yml)
+
 **Find out a Windows server is failing before your users do, using nothing but the
 management interface that is already built into Windows (WMI / WBEM).**
 
@@ -82,25 +84,29 @@ back inside the limit. All of this can be changed live from the dashboard.
 
 ### 1. Try it anywhere (simulator)
 
+Needs Python 3.9+ and git. Works on Linux and macOS.
+
 ```bash
-git clone <this repo> && cd serverwatch
-python3 -m venv .venv && .venv/bin/pip install flask
-cd agent && ../.venv/bin/python serverwatch.py --sim
+git clone https://github.com/Harshit6-b/serverwatch.git
+cd serverwatch
+./start.sh
 ```
 
 Open <http://localhost:8080>. The yellow bar injects failures, and the beacon works against
-the simulator too.
+the simulator too. (On Debian/Ubuntu you may first need `sudo apt install python3-venv`.)
 
 ### 2. Watch a real Windows PC
 
-In an **Administrator** PowerShell on the Windows machine:
+Needs Python 3.9+ from [python.org](https://www.python.org/downloads/) (tick *Add python.exe
+to PATH*). Clone the repo or use *Code → Download ZIP*, then in an **Administrator**
+PowerShell inside the folder:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\demo\setup_windows.ps1                       # pip install + firewall rule for port 8080
-python agent\serverwatch.py --services Spooler
+.\start.ps1
 ```
 
+The first run creates `.venv`, installs Flask and pywin32, and opens port 8080 in the firewall.
 On first start it prints the dashboard address and an **agent key**. FIX needs that key.
 
 - More services: `--services Spooler,W32Time`
@@ -188,7 +194,9 @@ The dashboard's **Report (.md)** and **Readings (.csv)** links export everything
 agent/        serverwatch.py (agent + web API), engine.py (rules), sources.py (WMI + simulator),
               static/index.html (dashboard), test_engine.py
 firmware/     ESP-IDF project for the beacon (main/; board.h has the pin maps), tools/ renders the screens on a PC
-demo/         inject.py fault injector, demo-disk scripts, Windows setup
+demo/         inject.py fault injector (standard library only), demo-disk scripts
+start.sh      one-command start on Linux/macOS (simulator)
+start.ps1     one-command start on Windows (real WMI)
 docs/img/     diagram and beacon screens
 ```
 
